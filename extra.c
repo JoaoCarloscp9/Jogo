@@ -18,7 +18,7 @@ int main(void)
 
     float x = 400;
     float y = 300;
-    float velocidade = 5;
+    float velocidade = 2.75;
 
     inimigo inimigos[MAX_INIMIGOS];
     int quantidade = 0;
@@ -30,6 +30,7 @@ int main(void)
     quantidade = 1;
 
     while (!WindowShouldClose())
+    // Movimentação do Jogador. //
     {
         if (IsKeyDown(KEY_RIGHT))
             x += velocidade;
@@ -40,6 +41,7 @@ int main(void)
         if (IsKeyDown(KEY_UP))
             y -= velocidade;
 
+    // Nascimento de inimigos com o tempo. //
         tempo += GetFrameTime();
         if (tempo > 10.0f && quantidade < MAX_INIMIGOS)
         {
@@ -50,6 +52,7 @@ int main(void)
             quantidade++;
         }
 
+    // Inimigos que seguem. //
         for (int i = 0; i < quantidade; i++)
         {
             float dx = x - inimigos[i].x;
@@ -63,10 +66,9 @@ int main(void)
             }
         }
 
-
         BeginDrawing();
-        ClearBackground(GREEN);
-        DrawCircle(x, y, 30, RED);
+        ClearBackground(LIME);
+        DrawCircle(x, y, 25, RED);
         for (int i = 0; i < quantidade; i++)
         {
             DrawCircle(inimigos[i].x, inimigos[i].y, 20, WHITE);
