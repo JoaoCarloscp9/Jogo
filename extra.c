@@ -10,10 +10,31 @@ typedef struct inimigo
     float vel;
 } inimigo;
 
+void criarInimigo (inimigo *inimigos, float x, float y, float vel, int *pquantidade) {
+    inimigos[*pquantidade].x = x;
+    inimigos[*pquantidade].y = y;
+    inimigos[*pquantidade].vel = vel;
+    *pquantidade += 1;
+}
+
+void perseguir (inimigo *inimigos, float x, float y, float vel, int *pquantidade) {
+    for (int i = 0; i < *pquantidade; i++) {
+            float dx = x - inimigos[i].x;
+            float dy = y - inimigos[i].y;
+            float distancia = sqrtf(dx * dx + dy * dy);
+
+            if (distancia > 0)
+            {
+                inimigos[i].x += (dx / distancia) * inimigos[i].vel;
+                inimigos[i].y += (dy / distancia) * inimigos[i].vel;
+            }
+    }
+}
+
 int main(void)
 {
 
-    InitWindow(1280, 680, "personagem");
+    InitWindow(1280, 680, "Jogo Bom");
     SetTargetFPS(60);
 
     float x = 400;
@@ -22,12 +43,10 @@ int main(void)
 
     inimigo inimigos[MAX_INIMIGOS];
     int quantidade = 0;
+    int *pquantidade = &quantidade;
     float tempo = 0;
 
-    inimigos[0].x = 200;
-    inimigos[0].y = 150;
-    inimigos[0].vel = 2;
-    quantidade = 1;
+    criarInimigo(inimigos, 200, 150, 2, pquantidade);
 
     while (!WindowShouldClose())
     // Movimentação do Jogador. //
@@ -46,25 +65,11 @@ int main(void)
         if (tempo > 10.0f && quantidade < MAX_INIMIGOS)
         {
             tempo = 0;
-            inimigos[quantidade].x = GetRandomValue(0, 800);
-            inimigos[quantidade].y = 0;
-            inimigos[quantidade].vel = 2;
-            quantidade++;
+            criarInimigo(inimigos, GetRandomValue(0, 800), 0 , 2, pquantidade);
         }
 
     // Inimigos que seguem. //
-        for (int i = 0; i < quantidade; i++)
-        {
-            float dx = x - inimigos[i].x;
-            float dy = y - inimigos[i].y;
-            float distancia = sqrtf(dx * dx + dy * dy);
-
-            if (distancia > 0)
-            {
-                inimigos[i].x += (dx / distancia) * inimigos[i].vel;
-                inimigos[i].y += (dy / distancia) * inimigos[i].vel;
-            }
-        }
+        perseguir(inimigos, x, y, velocidade, pquantidade);
 
         BeginDrawing();
         ClearBackground(LIME);
