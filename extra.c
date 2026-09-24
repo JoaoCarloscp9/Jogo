@@ -4,6 +4,9 @@
 #include <stdio.h>
 
 #define MAX_INIMIGOS 50
+#define LARGURA_TELA 1280
+#define ALTURA_TELA 680
+#define RAIO_INIMIGO 20
 
 typedef enum 
 {
@@ -20,6 +23,7 @@ typedef struct jogador
     float y;
     float vel;
     float raio;
+    int dano;
     Estado estado;
 } jogador;
 
@@ -28,12 +32,29 @@ typedef struct inimigo
     float x;
     float y;
     float vel;
+    int vida;
+    int vida_max;
     int dano;
     float raio;
     Estado estado;
 } inimigo;
 
-void criarInimigo (inimigo *inimigos, float x, float y, float vel, int dano, float raio, int *pquantidade) {
+void manter_na_tela (float *pos_x, float *pos_y){
+  if (*pos_x >= LARGURA_TELA - 25){
+    *pos_x = LARGURA_TELA - 25;
+  }
+  else if (*pos_x <=0 + 25){
+    *pos_x = 0 + 25;
+  }
+  if (*pos_y >= ALTURA_TELA - 25){
+    *pos_y = ALTURA_TELA - 25;
+  }
+  else if (*pos_y <=0 + 25){
+    *pos_y = 0 + 25;
+  }
+}
+
+void criarInimigo (inimigo *inimigos, float x, float y, float vel, int dano, float raio, int *pquantidade, float vida) {
     float x1, y1;
     int lado = GetRandomValue(0, 3); // 0=cima, 1=baixo, 2=esquerda, 3=direita
 
@@ -61,6 +82,8 @@ void criarInimigo (inimigo *inimigos, float x, float y, float vel, int dano, flo
     inimigos[*pquantidade].vel = vel;
     inimigos[*pquantidade].dano = dano;
     inimigos[*pquantidade].raio = raio;
+    inimigos[*pquantidade].vida_max = vida;
+    inimigos[*pquantidade].vida = vida;
     *pquantidade += 1;
 }
 
@@ -74,7 +97,7 @@ void reiniciarJogo (jogador *jogador1, inimigo *inimigos, int *pquantidade, floa
     *tempo = 0;
     *tempo_ultimo_dano = 0;
 
-    criarInimigo(inimigos, GetScreenWidth(), GetScreenHeight(), 2, 5, 20, pquantidade);
+    criarInimigo(inimigos, GetScreenWidth(), GetScreenHeight(), 2, 5, 20, pquantidade, 15);
 }
 
 void perseguir (inimigo *inimigos, float x, float y, float vel, int *pquantidade) {
@@ -88,6 +111,29 @@ void perseguir (inimigo *inimigos, float x, float y, float vel, int *pquantidade
                 inimigos[i].x += (dx / distancia) * inimigos[i].vel;
                 inimigos[i].y += (dy / distancia) * inimigos[i].vel;
             }
+    }
+}
+
+void separar_inimigos(inimigo *inimigos, int quantidade) {
+    for (int i = 0; i < quantidade; i++) {
+        for (int j = i + 1; j < quantidade; j++) {
+            float dx = inimigos[j].x - inimigos[i].x;
+            float dy = inimigos[j].y - inimigos[i].y;
+            float distancia = sqrtf(dx * dx + dy * dy);
+            float distancia_minima = RAIO_INIMIGO * 2; // soma dos dois raios
+
+            if (distancia > 0 && distancia < distancia_minima)
+            {
+                float sobreposicao = distancia_minima - distancia;
+                float empurra_x = (dx / distancia) * (sobreposicao / 2);
+                float empurra_y = (dy / distancia) * (sobreposicao / 2);
+
+                inimigos[i].x -= empurra_x;
+                inimigos[i].y -= empurra_y;
+                inimigos[j].x += empurra_x;
+                inimigos[j].y += empurra_y;
+            }
+        }
     }
 }
 
@@ -118,7 +164,7 @@ int main(void)
     InitWindow(1280, 680, "Jogo Bom");
     SetTargetFPS(60);
 
-    criarInimigo(inimigos, 200, 150, 2, 10, 20, pquantidade);
+    criarInimigo(inimigos, 200, 150, 2, 10, 20, pquantidade, 15);
 
     while (!WindowShouldClose())
     // Movimentação do Jogador. //
@@ -133,15 +179,19 @@ int main(void)
             if (IsKeyDown(KEY_UP))
                 jogador1.y -= jogador1.vel;
 
+        // Impede que o jogador passe da tela. //
+            manter_na_tela(&jogador1.x, &jogador1.y);
+
         // Nascimento de inimigos com o tempo. //
             tempo += GetFrameTime();
             if (tempo > 10.0f && quantidade < MAX_INIMIGOS)
             {
                 tempo = 0;
-                criarInimigo(inimigos, GetRandomValue(0, 1280), GetRandomValue(0, 680 ) , 2, 5, 20, pquantidade);
+                criarInimigo(inimigos, GetRandomValue(0, 1280), GetRandomValue(0, 680 ) , 2, 5, 20, pquantidade, 15);
             }
 
             perseguir(inimigos, jogador1.x, jogador1.y, jogador1.vel, pquantidade);
+            separar_inimigos(inimigos, quantidade);
 
             if (GetTime() - tempo_ultimo_dano >= 2.0f) {
 
