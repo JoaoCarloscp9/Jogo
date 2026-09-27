@@ -2,17 +2,25 @@
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 
-#define MAX_INIMIGOS 50
 #define LARGURA_TELA 1280
 #define ALTURA_TELA 680
 #define RAIO_INIMIGO 20
+#define CAPACIDADE_INICIAL 50
 
 typedef enum 
 {
     VIVO,
     MORTO
 } Estado;
+
+typedef enum
+{
+    VIDA,
+    ALCANCE,
+    DANO
+} Melhoria;
 
 typedef struct jogador
 {
@@ -24,6 +32,8 @@ typedef struct jogador
     float vel;
     float raio;
     int dano;
+    float raio_ataque;
+    int nivel;
     Estado estado;
 } jogador;
 
@@ -39,7 +49,7 @@ typedef struct inimigo
     Estado estado;
 } inimigo;
 
-void manter_na_tela (float *pos_x, float *pos_y){
+void manterNaTela (float *pos_x, float *pos_y){
   if (*pos_x >= LARGURA_TELA - 25){
     *pos_x = LARGURA_TELA - 25;
   }
@@ -54,7 +64,13 @@ void manter_na_tela (float *pos_x, float *pos_y){
   }
 }
 
-void criarInimigo (inimigo *inimigos, float x, float y, float vel, int dano, float raio, int *pquantidade, float vida) {
+void criarInimigo (inimigo *inimigos, int capacidade, float x, float y, float vel, int dano, float raio, int *pquantidade, float vida) {
+    
+    if (*pquantidade >= capacidade){
+        //array maior que a quantidade máxima definida//
+        return;
+    }
+
     float x1, y1;
     int lado = GetRandomValue(0, 3); // 0=cima, 1=baixo, 2=esquerda, 3=direita
 
@@ -84,10 +100,29 @@ void criarInimigo (inimigo *inimigos, float x, float y, float vel, int dano, flo
     inimigos[*pquantidade].raio = raio;
     inimigos[*pquantidade].vida_max = vida;
     inimigos[*pquantidade].vida = vida;
+    inimigos[*pquantidade].estado = VIVO;
     *pquantidade += 1;
 }
 
-void reiniciarJogo (jogador *jogador1, inimigo *inimigos, int *pquantidade, float *tempo, float *tempo_ultimo_dano) {
+void apagarInimigo (inimigo **pinimigos, int *pcapacidade, int *pquantidade) {
+    for (int i = 0; i < *pquantidade; i++) {
+        if ((*pinimigos)[i].estado == MORTO) {
+            (*pinimigos)[i] = (*pinimigos)[*pquantidade - 1];
+            (*pquantidade)--;
+
+            if (*pquantidade > 0 && *pquantidade <= *pcapacidade / 2) {
+                inimigo *temp = realloc(*pinimigos, *pquantidade * sizeof(inimigo));
+                if (temp != NULL) {
+                    *pinimigos = temp;
+                    *pcapacidade = *pquantidade;
+                }
+            }
+            i--;
+        }
+    }
+}
+
+void reiniciarJogo (jogador *jogador1, inimigo **pinimigos, int *pcapacidade, int *pquantidade, float *tempo, float *tempo_ultimo_dano) {
     jogador1->x = 400;
     jogador1->y = 300;
     jogador1->estado = VIVO;
@@ -97,10 +132,37 @@ void reiniciarJogo (jogador *jogador1, inimigo *inimigos, int *pquantidade, floa
     *tempo = 0;
     *tempo_ultimo_dano = 0;
 
-    criarInimigo(inimigos, GetScreenWidth(), GetScreenHeight(), 2, 5, 20, pquantidade, 15);
+    //Se a quatidade cresceu durante a partida, ela volta ao estado inicial quando reinicia.//    
+    if (*pcapacidade > CAPACIDADE_INICIAL){
+        inimigo *novo = realloc (*pinimigos, CAPACIDADE_INICIAL * sizeof (inimigo));
+        
+        if (novo != NULL){
+            *pinimigos = novo;
+            *pcapacidade = CAPACIDADE_INICIAL;
+        }
+    }
+
+    criarInimigo(*pinimigos, *pcapacidade, GetScreenWidth(), GetScreenHeight(), 2, 5, 20, pquantidade, 15);
 }
 
-void perseguir (inimigo *inimigos, float x, float y, float vel, int *pquantidade) {
+void subirNivel (jogador *jogador1, Melhoria caracteristica) {
+    switch (caracteristica) {
+        case VIDA:
+            jogador1->vida_max += 10;
+            jogador1->vida += 10;
+            break;
+        case ALCANCE:
+            jogador1->raio_ataque += 10;
+            break;
+        case DANO:
+            jogador1->dano += 3;
+            break;
+        default: return;
+    }
+    jogador1->nivel += 1;
+}
+
+void perseguir (inimigo *inimigos, float x, float y, int *pquantidade) {
     for (int i = 0; i < *pquantidade; i++) {
             float dx = x - inimigos[i].x;
             float dy = y - inimigos[i].y;
@@ -114,7 +176,7 @@ void perseguir (inimigo *inimigos, float x, float y, float vel, int *pquantidade
     }
 }
 
-void separar_inimigos(inimigo *inimigos, int quantidade) {
+void separarInimigos(inimigo *inimigos, int quantidade) {
     for (int i = 0; i < quantidade; i++) {
         for (int j = i + 1; j < quantidade; j++) {
             float dx = inimigos[j].x - inimigos[i].x;
@@ -137,6 +199,24 @@ void separar_inimigos(inimigo *inimigos, int quantidade) {
     }
 }
 
+int inimigoMaisProximo(int *pquantidade, float x, float y, inimigo *inimigos) {
+    int maisProximo = -1;
+    float menorDistancia = 0.0f;
+
+    for (int i = 0; i < *pquantidade; i++) {
+
+        float dx =  inimigos[i].x - x;
+        float dy = inimigos[i].y - y;
+        float distancia = sqrtf(dx * dx + dy * dy);
+
+        if (maisProximo == -1 || distancia < menorDistancia) {
+            maisProximo = i;
+            menorDistancia = distancia;
+        }
+    }
+    return maisProximo;
+}
+
 int main(void)
 {
 
@@ -144,16 +224,33 @@ int main(void)
     jogador1.x = 400;
     jogador1.y = 300;
     jogador1.vel = 2.75;
-    jogador1.vida_max = 100;
+    jogador1.vida_max = 50;
     jogador1.vida = jogador1.vida_max;
     jogador1.raio = 25;
+    jogador1.dano = 5;
+    jogador1.raio_ataque = 180;
     jogador1.estado = VIVO;
+    jogador1.nivel = 0;
 
-    inimigo inimigos[MAX_INIMIGOS];
+    int experiencia = 0;
+    int experiencia_max = 5;
+    
+    int capacidade = CAPACIDADE_INICIAL;
+
+    //Vetor dinâmico dos inimigos.//
+    inimigo *inimigos = malloc (capacidade * sizeof (inimigo));
+    if (inimigos == NULL) {
+        printf("Erro ao alocar memoria para os inimigos.\n");
+        return 1;
+    }
+
+
     int quantidade = 0;
     int *pquantidade = &quantidade;
     float tempo = 0;
     float tempo_ultimo_dano = 0;
+    float tempo_ataque = 0;
+    bool pausaMelhoria = false;
 
     do {
         printf("Informe seu nome para que o jogo possa comecar:");
@@ -164,12 +261,12 @@ int main(void)
     InitWindow(1280, 680, "Jogo Bom");
     SetTargetFPS(60);
 
-    criarInimigo(inimigos, 200, 150, 2, 10, 20, pquantidade, 15);
+    criarInimigo(inimigos, capacidade, 200, 150, 2, 10, 20, pquantidade, 15);
 
     while (!WindowShouldClose())
-    // Movimentação do Jogador. //
     {
-        if (jogador1.estado == VIVO) {
+        // Movimentação do Jogador. //
+        if (jogador1.estado == VIVO && !pausaMelhoria) {
             if (IsKeyDown(KEY_RIGHT))
                 jogador1.x += jogador1.vel;
             if (IsKeyDown(KEY_LEFT))
@@ -179,19 +276,52 @@ int main(void)
             if (IsKeyDown(KEY_UP))
                 jogador1.y -= jogador1.vel;
 
+        // Atacar inimigos //       
+        int alvo = inimigoMaisProximo(pquantidade, jogador1.x, jogador1.y, inimigos);
+        if (GetTime() - tempo_ataque >= 1.0f) {
+            if (IsKeyPressed(KEY_SPACE)) {
+                if (alvo >= 0) {
+                    float dx = jogador1.x - inimigos[alvo].x;
+                    float dy = jogador1.y - inimigos[alvo].y;
+                    float distancia = sqrtf(dx * dx + dy * dy);
+
+                    if (distancia < jogador1.raio_ataque) {
+                        inimigos[alvo].vida -= jogador1.dano;
+                        tempo_ataque = GetTime();
+                        if (inimigos[alvo].vida <= 0) {
+                            experiencia += 1;
+                            if (experiencia >= experiencia_max) {
+                                pausaMelhoria = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Impede que o jogador passe da tela. //
-            manter_na_tela(&jogador1.x, &jogador1.y);
+        manterNaTela(&jogador1.x, &jogador1.y);
+
+        // Atribuir estado MORTO a um inimigo //
+        for (int i = 0; i < quantidade; i++) {
+            if (inimigos[i].vida <= 0) {
+                inimigos[i].estado = MORTO;
+            }
+        }
+
+        // Apaga um inimigo se ele estiver morto //
+        apagarInimigo (&inimigos, &capacidade, pquantidade);
 
         // Nascimento de inimigos com o tempo. //
             tempo += GetFrameTime();
-            if (tempo > 10.0f && quantidade < MAX_INIMIGOS)
+            if (tempo > 2.0f && quantidade < capacidade)
             {
                 tempo = 0;
-                criarInimigo(inimigos, GetRandomValue(0, 1280), GetRandomValue(0, 680 ) , 2, 5, 20, pquantidade, 15);
+                criarInimigo(inimigos, capacidade, GetRandomValue(0, 1280), GetRandomValue(0, 680 ) , 2, 5, 20, pquantidade, 15);
             }
 
-            perseguir(inimigos, jogador1.x, jogador1.y, jogador1.vel, pquantidade);
-            separar_inimigos(inimigos, quantidade);
+            perseguir(inimigos, jogador1.x, jogador1.y, pquantidade);
+            separarInimigos(inimigos, quantidade);
 
             if (GetTime() - tempo_ultimo_dano >= 2.0f) {
 
@@ -218,22 +348,56 @@ int main(void)
                 }
             }
 
+        } else if (jogador1.estado == VIVO && pausaMelhoria) {
+            if (IsKeyPressed(KEY_ONE)) {
+                subirNivel(&jogador1, VIDA);
+                experiencia = 0;
+                experiencia_max = experiencia_max * 2;
+                pausaMelhoria = false;
+        } else if (IsKeyPressed(KEY_TWO)) {
+                subirNivel(&jogador1, DANO);
+                experiencia = 0;
+                experiencia_max = experiencia_max * 2;
+                pausaMelhoria = false;
+        } else if (IsKeyPressed(KEY_THREE)) {
+                subirNivel(&jogador1, ALCANCE);
+                experiencia = 0;
+                experiencia_max = experiencia_max * 2;
+                pausaMelhoria = false;
         } else {
             if (IsKeyPressed(KEY_ENTER)) {
-                reiniciarJogo(&jogador1, inimigos, pquantidade, &tempo, &tempo_ultimo_dano);
+                reiniciarJogo(&jogador1, &inimigos, &capacidade, pquantidade, &tempo, &tempo_ultimo_dano);
             }
+        }
         }    
             BeginDrawing();
             ClearBackground(LIME);
 
-            if (jogador1.estado == VIVO) {
+            if (jogador1.estado == VIVO && !pausaMelhoria) {
                 DrawText(jogador1.nome, 5, 10, 35, WHITE);
                 DrawText(TextFormat ("%d|%d", jogador1.vida, jogador1.vida_max), 5, 50, 35, WHITE);
+                DrawText(TextFormat ("Nivel:%d Exp:%d|%d",jogador1.nivel , experiencia, experiencia_max), 5, 80, 35, WHITE);
+                DrawCircle(jogador1.x, jogador1.y, jogador1.raio_ataque, Fade(SKYBLUE, 0.05f));
+                DrawCircleLines(jogador1.x, jogador1.y, jogador1.raio_ataque, PURPLE);
                 DrawCircle(jogador1.x, jogador1.y, jogador1.raio, RED);
+                
                 for (int i = 0; i < quantidade; i++)
                 {
                     DrawCircle(inimigos[i].x, inimigos[i].y, inimigos[i].raio, WHITE);
+                    //Mostra a vida dos inimigos//
+                    DrawText( TextFormat ("%d", inimigos[i].vida), inimigos[i].x, inimigos[i].y, 20, BLACK);
                 }
+            } else if (jogador1.estado == VIVO && pausaMelhoria) {
+                    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(BLACK, 0.6f));
+
+                    const char *titulo = "ESCOLHA UMA MELHORIA";
+                    int fontSizeTitulo = 40;
+                    int larguraTitulo = MeasureText(titulo, fontSizeTitulo);
+                    DrawText(titulo, GetScreenWidth()/2 - larguraTitulo/2, 200, fontSizeTitulo, WHITE);
+
+                    DrawText("[1] Vida       +10 vida maxima", GetScreenWidth()/2 - 150, 280, 25, WHITE);
+                    DrawText("[2] Dano       +5 dano",         GetScreenWidth()/2 - 150, 320, 25, WHITE);
+                    DrawText("[3] Alcance    +10 raio de ataque", GetScreenWidth()/2 - 150, 360, 25, WHITE);
             } else {
                 const char *msg = "CORROMPIDO";
                 int fontSize = 60;
@@ -247,10 +411,12 @@ int main(void)
 
                 // ainda desenha o jogador parado, com cor diferente (ex: cinza)
                 DrawCircle(jogador1.x, jogador1.y, jogador1.raio, GRAY);
-                        }   
+            }   
             EndDrawing();
     }                    
     CloseWindow();
+
+    free(inimigos);
 
     return 0;
 }
