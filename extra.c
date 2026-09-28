@@ -27,13 +27,18 @@ typedef enum
     DANO
 } Melhoria;
 
+typedef struct posicao 
+{
+    float x;
+    float y;
+} posicao;
+
 typedef struct jogador
 {
     char nome[15];
     int vida;
     int vida_max;
-    float x;
-    float y;
+    posicao pos;
     float vel;
     float raio;
     int dano;
@@ -152,8 +157,8 @@ void apagarInimigo (inimigo **pinimigos, int *pcapacidade, int *pquantidade) {
 }
 
 void reiniciarJogo (jogador *jogador1, inimigo **pinimigos, int *pcapacidade, int *pquantidade, float *tempo, float *tempo_ultimo_dano) {
-    jogador1->x = 400;
-    jogador1->y = 300;
+    jogador1->pos.x = 400;
+    jogador1->pos.y = 300;
     jogador1->estado = VIVO;
     jogador1->vida = jogador1->vida_max;
 
@@ -250,8 +255,8 @@ int main(void)
 {
 
     jogador jogador1;
-    jogador1.x = 400;
-    jogador1.y = 300;
+    jogador1.pos.x = 400;
+    jogador1.pos.y = 300;
     jogador1.vel = 2.75;
     jogador1.vida_max = 50;
     jogador1.vida = jogador1.vida_max;
@@ -323,21 +328,21 @@ int main(void)
         // Movimentação do Jogador. //
         if (jogador1.estado == VIVO && !pausaMelhoria) {
             if (IsKeyDown(KEY_RIGHT))
-                jogador1.x += jogador1.vel;
+                jogador1.pos.x += jogador1.vel;
             if (IsKeyDown(KEY_LEFT))
-                jogador1.x -= jogador1.vel;
+                jogador1.pos.x -= jogador1.vel;
             if (IsKeyDown(KEY_DOWN))
-                jogador1.y += jogador1.vel;
+                jogador1.pos.y += jogador1.vel;
             if (IsKeyDown(KEY_UP))
-                jogador1.y -= jogador1.vel;
+                jogador1.pos.y -= jogador1.vel;
 
         // Atacar inimigos //       
-        int alvo = inimigoMaisProximo(pquantidade, jogador1.x, jogador1.y, inimigos);
-        if (GetTime() - tempo_ataque >= 1.5f) {
+        int alvo = inimigoMaisProximo(pquantidade, jogador1.pos.x, jogador1.pos.y, inimigos);
+        if (GetTime() - tempo_ataque >= 2.0f) {
             if (IsKeyPressed(KEY_SPACE)) {
                 if (alvo >= 0) {
-                    float dx = jogador1.x - inimigos[alvo].x;
-                    float dy = jogador1.y - inimigos[alvo].y;
+                    float dx = jogador1.pos.x - inimigos[alvo].x;
+                    float dy = jogador1.pos.y - inimigos[alvo].y;
                     float distancia = sqrtf(dx * dx + dy * dy);
 
                     if (distancia < jogador1.raio_ataque) {
@@ -359,7 +364,7 @@ int main(void)
         }
 
         // Impede que o jogador passe da tela. //
-        manterNaTela(&jogador1.x, &jogador1.y);
+        manterNaTela(&jogador1.pos.x, &jogador1.pos.y);
 
         // Atribuir estado MORTO a um inimigo //
         for (int i = 0; i < quantidade; i++) {
@@ -373,13 +378,13 @@ int main(void)
 
         // Nascimento de inimigos com o tempo. //
             tempo += GetFrameTime();
-            if (tempo > 1.0f && quantidade < capacidade)
+            if (tempo > 1.5f && quantidade < capacidade)
             {
                 tempo = 0;
                 criarInimigo(inimigos, capacidade, GetRandomValue(0, 1280), GetRandomValue(0, 680 ) , 2, 5, 20, pquantidade, 15);
             }
 
-            perseguir(inimigos, jogador1.x, jogador1.y, pquantidade);
+            perseguir(inimigos, jogador1.pos.x, jogador1.pos.y, pquantidade);
             separarInimigos(inimigos, quantidade);
 
             if (GetTime() - tempo_ultimo_dano >= 2.0f) {
@@ -388,8 +393,8 @@ int main(void)
                 bool levou_dano = false;
 
                 for (int i = 0; i < quantidade; i++) {    
-                    float dx = jogador1.x - inimigos[i].x;
-                    float dy = jogador1.y - inimigos[i].y;
+                    float dx = jogador1.pos.x - inimigos[i].x;
+                    float dy = jogador1.pos.y - inimigos[i].y;
                     float distancia = sqrtf(dx * dx + dy * dy);
                     if (distancia <= (jogador1.raio + inimigos[i].raio)) {
                         dano_acumulado += inimigos[i].dano;
@@ -444,11 +449,11 @@ int main(void)
                 DrawText(jogador1.nome, 5, 10, 35, WHITE);
                 DrawText(TextFormat ("%d|%d", jogador1.vida, jogador1.vida_max), 5, 50, 35, WHITE);
                 DrawText(TextFormat ("Nivel:%d Exp:%d|%d",jogador1.nivel , experiencia, experiencia_max), 5, 80, 35, WHITE);
-                DrawCircle(jogador1.x, jogador1.y, jogador1.raio_ataque, Fade(SKYBLUE, 0.05f));
-                DrawCircleLines(jogador1.x, jogador1.y, jogador1.raio_ataque, PURPLE);
+                DrawCircle(jogador1.pos.x, jogador1.pos.y, jogador1.raio_ataque, Fade(SKYBLUE, 0.05f));
+                DrawCircleLines(jogador1.pos.x, jogador1.pos.y, jogador1.raio_ataque, PURPLE);
                 Rectangle destinoJogador = {
-                    jogador1.x,
-                    jogador1.y,
+                    jogador1.pos.x,
+                    jogador1.pos.y,
                     jogador1.raio * ESCALA_JOGADOR,   // ajuste a escala visual como preferir
                     jogador1.raio * ESCALA_JOGADOR
                 };
@@ -512,7 +517,7 @@ int main(void)
                 DrawText(msg2, GetScreenWidth()/2 - largura2/2, GetScreenHeight()/2 + fontSize, fontSize2, WHITE);
 
                 // ainda desenha o jogador parado, com cor diferente (ex: cinza)
-                DrawCircle(jogador1.x, jogador1.y, jogador1.raio, GRAY);
+                DrawCircle(jogador1.pos.x, jogador1.pos.y, jogador1.raio, GRAY);
             }   
             EndDrawing();
     }      
