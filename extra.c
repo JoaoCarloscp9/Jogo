@@ -8,6 +8,10 @@
 #define ALTURA_TELA 680
 #define RAIO_INIMIGO 20
 #define CAPACIDADE_INICIAL 50
+#define TAMANHO_CELULA 40
+#define LARGURA_FRAME 200
+#define ALTURA_FRAME 200
+#define ESCALA_JOGADOR 5.0f
 
 typedef enum 
 {
@@ -48,6 +52,26 @@ typedef struct inimigo
     float raio;
     Estado estado;
 } inimigo;
+
+int **criarMatriz(int linhas, int colunas) {
+    int **matriz = (int **)malloc(linhas * sizeof(int *));
+    if (matriz == NULL) return NULL;
+
+    for (int i = 0; i < linhas; i++) {
+        matriz[i] = (int *)malloc(colunas * sizeof(int));
+        for (int j = 0; j < colunas; j++) {
+            matriz[i][j] = 0;
+        }
+    }
+    return matriz;
+}
+
+void liberarMatriz(int **matriz, int linhas) {
+    for (int i = 0; i < linhas; i++) {
+        free(matriz[i]);
+    }
+    free(matriz);
+}
 
 void manterNaTela (float *pos_x, float *pos_y){
   if (*pos_x >= LARGURA_TELA - 25){
@@ -232,6 +256,13 @@ int main(void)
     jogador1.estado = VIVO;
     jogador1.nivel = 0;
 
+    Rectangle origemJogador = {
+        1 * LARGURA_FRAME,
+        0,
+        LARGURA_FRAME,
+        ALTURA_FRAME
+    };
+
     int experiencia = 0;
     int experiencia_max = 5;
     
@@ -258,8 +289,20 @@ int main(void)
         jogador1.nome[strcspn(jogador1.nome, "\n")] = '\0';
     } while (strlen (jogador1.nome)== 0);
 
-    InitWindow(1280, 680, "Jogo Bom");
+    InitWindow(LARGURA_TELA, ALTURA_TELA, "Jogo Bom");
     SetTargetFPS(60);
+
+    Texture2D grama = LoadTexture("sprites/grama.png");
+    Texture2D cogumelo = LoadTexture("sprites/Cogumelo.png");
+    Texture2D mago = LoadTexture("sprites/Mago.png");
+
+    int colunas = LARGURA_TELA / TAMANHO_CELULA;
+    int linhas = ALTURA_TELA / TAMANHO_CELULA;
+    int **mapa = criarMatriz (linhas, colunas);
+    if (mapa == NULL) {
+        printf("Erro de alocação");
+        return 1;
+    }
 
     criarInimigo(inimigos, capacidade, 200, 150, 2, 10, 20, pquantidade, 15);
 
@@ -278,7 +321,7 @@ int main(void)
 
         // Atacar inimigos //       
         int alvo = inimigoMaisProximo(pquantidade, jogador1.x, jogador1.y, inimigos);
-        if (GetTime() - tempo_ataque >= 1.0f) {
+        if (GetTime() - tempo_ataque >= 1.5f) {
             if (IsKeyPressed(KEY_SPACE)) {
                 if (alvo >= 0) {
                     float dx = jogador1.x - inimigos[alvo].x;
@@ -314,7 +357,7 @@ int main(void)
 
         // Nascimento de inimigos com o tempo. //
             tempo += GetFrameTime();
-            if (tempo > 2.0f && quantidade < capacidade)
+            if (tempo > 1.0f && quantidade < capacidade)
             {
                 tempo = 0;
                 criarInimigo(inimigos, capacidade, GetRandomValue(0, 1280), GetRandomValue(0, 680 ) , 2, 5, 20, pquantidade, 15);
@@ -370,8 +413,16 @@ int main(void)
             }
         }
         }    
+
             BeginDrawing();
             ClearBackground(LIME);
+
+            for (int i = 0; i < linhas; i++) {
+                for (int j = 0; j < colunas; j++) {
+                    DrawTexture(grama, j * TAMANHO_CELULA, i * TAMANHO_CELULA, WHITE);
+                    // mapa[i][j] pode, no futuro, indicar qual variação de tile desenhar aqui
+                }
+            }
 
             if (jogador1.estado == VIVO && !pausaMelhoria) {
                 DrawText(jogador1.nome, 5, 10, 35, WHITE);
@@ -379,13 +430,31 @@ int main(void)
                 DrawText(TextFormat ("Nivel:%d Exp:%d|%d",jogador1.nivel , experiencia, experiencia_max), 5, 80, 35, WHITE);
                 DrawCircle(jogador1.x, jogador1.y, jogador1.raio_ataque, Fade(SKYBLUE, 0.05f));
                 DrawCircleLines(jogador1.x, jogador1.y, jogador1.raio_ataque, PURPLE);
-                DrawCircle(jogador1.x, jogador1.y, jogador1.raio, RED);
+                Rectangle destinoJogador = {
+                    jogador1.x,
+                    jogador1.y,
+                    jogador1.raio * ESCALA_JOGADOR,   // ajuste a escala visual como preferir
+                    jogador1.raio * ESCALA_JOGADOR
+                };
+                Vector2 origemRotacaoJogador = { destinoJogador.width / 2, destinoJogador.height / 2 };
+
+                DrawTexturePro(mago, origemJogador, destinoJogador, origemRotacaoJogador, 0.0f, WHITE);
                 
                 for (int i = 0; i < quantidade; i++)
                 {
-                    DrawCircle(inimigos[i].x, inimigos[i].y, inimigos[i].raio, WHITE);
+                    Rectangle origem = { 0, 0, (float)cogumelo.width, (float)cogumelo.height };
+                    Rectangle destino = {
+                        inimigos[i].x,
+                        inimigos[i].y,
+                        inimigos[i].raio * 2.5,
+                        inimigos[i].raio * 2.5
+                    };
+                    Vector2 origemRotacao = { inimigos[i].raio, inimigos[i].raio }; // centraliza a textura na posição
+
+                    DrawTexturePro(cogumelo, origem, destino, origemRotacao, 0.0f, WHITE);
+
                     //Mostra a vida dos inimigos//
-                    DrawText( TextFormat ("%d", inimigos[i].vida), inimigos[i].x, inimigos[i].y, 20, BLACK);
+                    DrawText(TextFormat("%d", inimigos[i].vida), inimigos[i].x, inimigos[i].y, 20, WHITE);
                 }
             } else if (jogador1.estado == VIVO && pausaMelhoria) {
                     DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(BLACK, 0.6f));
@@ -396,7 +465,7 @@ int main(void)
                     DrawText(titulo, GetScreenWidth()/2 - larguraTitulo/2, 200, fontSizeTitulo, WHITE);
 
                     DrawText("[1] Vida       +10 vida maxima", GetScreenWidth()/2 - 150, 280, 25, WHITE);
-                    DrawText("[2] Dano       +5 dano",         GetScreenWidth()/2 - 150, 320, 25, WHITE);
+                    DrawText("[2] Dano       +3 dano",         GetScreenWidth()/2 - 150, 320, 25, WHITE);
                     DrawText("[3] Alcance    +10 raio de ataque", GetScreenWidth()/2 - 150, 360, 25, WHITE);
             } else {
                 const char *msg = "CORROMPIDO";
@@ -413,10 +482,14 @@ int main(void)
                 DrawCircle(jogador1.x, jogador1.y, jogador1.raio, GRAY);
             }   
             EndDrawing();
-    }                    
-    CloseWindow();
-
+    }      
+    
     free(inimigos);
+    liberarMatriz(mapa, linhas);
+    UnloadTexture(grama);
+    UnloadTexture(cogumelo);
+
+    CloseWindow();
 
     return 0;
 }
