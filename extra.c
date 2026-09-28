@@ -12,6 +12,7 @@
 #define LARGURA_FRAME 200
 #define ALTURA_FRAME 200
 #define ESCALA_JOGADOR 5.0f
+#define DURACAO_MAGIA 0.5f
 
 typedef enum 
 {
@@ -51,6 +52,7 @@ typedef struct inimigo
     int dano;
     float raio;
     Estado estado;
+    int id;
 } inimigo;
 
 int **criarMatriz(int linhas, int colunas) {
@@ -89,7 +91,8 @@ void manterNaTela (float *pos_x, float *pos_y){
 }
 
 void criarInimigo (inimigo *inimigos, int capacidade, float x, float y, float vel, int dano, float raio, int *pquantidade, float vida) {
-    
+    static int proximo_id = 0;
+
     if (*pquantidade >= capacidade){
         //array maior que a quantidade máxima definida//
         return;
@@ -125,6 +128,8 @@ void criarInimigo (inimigo *inimigos, int capacidade, float x, float y, float ve
     inimigos[*pquantidade].vida_max = vida;
     inimigos[*pquantidade].vida = vida;
     inimigos[*pquantidade].estado = VIVO;
+    inimigos[*pquantidade].id = proximo_id;
+    proximo_id++;
     *pquantidade += 1;
 }
 
@@ -268,6 +273,8 @@ int main(void)
     
     int capacidade = CAPACIDADE_INICIAL;
 
+    int efeito_magia_alvo_id = -1;
+
     //Vetor dinâmico dos inimigos.//
     inimigo *inimigos = malloc (capacidade * sizeof (inimigo));
     if (inimigos == NULL) {
@@ -283,6 +290,10 @@ int main(void)
     float tempo_ataque = 0;
     bool pausaMelhoria = false;
 
+    float tempo_magia = -DURACAO_MAGIA;
+    float efeito_magia_x = 0;
+    float efeito_magia_y = 0;
+
     do {
         printf("Informe seu nome para que o jogo possa comecar:");
         fgets(jogador1.nome, sizeof(jogador1.nome), stdin);
@@ -295,6 +306,7 @@ int main(void)
     Texture2D grama = LoadTexture("sprites/grama.png");
     Texture2D cogumelo = LoadTexture("sprites/Cogumelo.png");
     Texture2D mago = LoadTexture("sprites/Mago.png");
+    Texture2D magia = LoadTexture("sprites/Magia.png");
 
     int colunas = LARGURA_TELA / TAMANHO_CELULA;
     int linhas = ALTURA_TELA / TAMANHO_CELULA;
@@ -331,6 +343,10 @@ int main(void)
                     if (distancia < jogador1.raio_ataque) {
                         inimigos[alvo].vida -= jogador1.dano;
                         tempo_ataque = GetTime();
+
+                        efeito_magia_alvo_id = inimigos[alvo].id;
+                        tempo_magia = GetTime();
+
                         if (inimigos[alvo].vida <= 0) {
                             experiencia += 1;
                             if (experiencia >= experiencia_max) {
@@ -454,7 +470,24 @@ int main(void)
                     DrawTexturePro(cogumelo, origem, destino, origemRotacao, 0.0f, WHITE);
 
                     //Mostra a vida dos inimigos//
-                    DrawText(TextFormat("%d", inimigos[i].vida), inimigos[i].x, inimigos[i].y, 20, WHITE);
+                    DrawText(TextFormat("%d", inimigos[i].vida), inimigos[i].x + 10, inimigos[i].y + 15, 20, WHITE);
+                }
+                if (GetTime() - tempo_magia <= DURACAO_MAGIA) {
+                    for (int i = 0; i < quantidade; i++) {
+                        if (inimigos[i].id == efeito_magia_alvo_id) {
+                            Rectangle origemMagia = { 0, 0, (float)magia.width, (float)magia.height };
+                            Rectangle destinoMagia = {
+                                inimigos[i].x + 7,
+                                inimigos[i].y + 7,
+                                inimigos[i].raio * 2.5f,
+                                inimigos[i].raio * 2.5f
+                            };
+                            Vector2 origemRotacaoMagia = { destinoMagia.width / 2, destinoMagia.height / 2 };
+
+                            DrawTexturePro(magia, origemMagia, destinoMagia, origemRotacaoMagia, 0.0f, WHITE);
+                            break; // já achou, não precisa continuar procurando
+                        }
+                    }
                 }
             } else if (jogador1.estado == VIVO && pausaMelhoria) {
                     DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(BLACK, 0.6f));
@@ -488,6 +521,8 @@ int main(void)
     liberarMatriz(mapa, linhas);
     UnloadTexture(grama);
     UnloadTexture(cogumelo);
+    UnloadTexture(mago);
+    UnloadTexture(magia);
 
     CloseWindow();
 
