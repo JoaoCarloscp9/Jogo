@@ -143,14 +143,6 @@ void apagarInimigo (inimigo **pinimigos, int *pcapacidade, int *pquantidade) {
         if ((*pinimigos)[i].estado == MORTO) {
             (*pinimigos)[i] = (*pinimigos)[*pquantidade - 1];
             (*pquantidade)--;
-
-            if (*pquantidade > 0 && *pquantidade <= *pcapacidade / 2) {
-                inimigo *temp = realloc(*pinimigos, *pquantidade * sizeof(inimigo));
-                if (temp != NULL) {
-                    *pinimigos = temp;
-                    *pcapacidade = *pquantidade;
-                }
-            }
             i--;
         }
     }
@@ -378,7 +370,7 @@ int main(void)
 
         // Nascimento de inimigos com o tempo. //
             tempo += GetFrameTime();
-            if (tempo > 1.5f && quantidade < capacidade)
+            if (tempo > 2.0f && quantidade < capacidade)
             {
                 tempo = 0;
                 criarInimigo(inimigos, capacidade, GetRandomValue(0, 1280), GetRandomValue(0, 680 ) , 2, 5, 20, pquantidade, 15);
