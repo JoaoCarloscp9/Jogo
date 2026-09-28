@@ -8,7 +8,7 @@
 #define ALTURA_TELA 680
 #define RAIO_INIMIGO 20
 #define CAPACIDADE_INICIAL 50
-#define TAMANHO_CELULA 40
+#define TAMANHO_CELULA 30
 #define LARGURA_FRAME 200
 #define ALTURA_FRAME 200
 #define ESCALA_JOGADOR 5.0f
@@ -420,12 +420,12 @@ int main(void)
                 experiencia = 0;
                 experiencia_max = experiencia_max * 2;
                 pausaMelhoria = false;
+        }
         } else {
             if (IsKeyPressed(KEY_ENTER)) {
                 reiniciarJogo(&jogador1, &inimigos, &capacidade, pquantidade, &tempo, &tempo_ultimo_dano);
             }
-        }
-        }    
+        }  
 
             BeginDrawing();
             ClearBackground(LIME);
@@ -440,7 +440,7 @@ int main(void)
             if (jogador1.estado == VIVO && !pausaMelhoria) {
                 DrawText(jogador1.nome, 5, 10, 35, WHITE);
                 DrawText(TextFormat ("%d|%d", jogador1.vida, jogador1.vida_max), 5, 50, 35, WHITE);
-                DrawText(TextFormat ("Nivel:%d Exp:%d|%d",jogador1.nivel , experiencia, experiencia_max), 5, 80, 35, WHITE);
+                DrawText(TextFormat ("Nivel:%d Exp:%d|%d",jogador1.nivel , experiencia, experiencia_max), 5, 90, 35, WHITE);
                 DrawCircle(jogador1.pos.x, jogador1.pos.y, jogador1.raio_ataque, Fade(SKYBLUE, 0.05f));
                 DrawCircleLines(jogador1.pos.x, jogador1.pos.y, jogador1.raio_ataque, PURPLE);
                 Rectangle destinoJogador = {
@@ -507,13 +507,14 @@ int main(void)
                 int fontSize2 = 25;
                 int largura2 = MeasureText(msg2, fontSize2);
                 DrawText(msg2, GetScreenWidth()/2 - largura2/2, GetScreenHeight()/2 + fontSize, fontSize2, WHITE);
+                DrawText(TextFormat("Nível:%d", jogador1.nivel), (GetScreenWidth()/2) - largura/10, (GetScreenHeight()/2) + fontSize2, fontSize2, WHITE);
 
                 // ainda desenha o jogador parado, com cor diferente (ex: cinza)
                 DrawCircle(jogador1.pos.x, jogador1.pos.y, jogador1.raio, GRAY);
             }   
-            EndDrawing();
-    }      
-    
+            EndDrawing();      
+
+    }    
     free(inimigos);
     liberarMatriz(mapa, linhas);
     UnloadTexture(grama);
