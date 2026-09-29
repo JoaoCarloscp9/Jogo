@@ -286,7 +286,7 @@ int main(void)
     float tempo_ultimo_dano = 0;
     float tempo_ataque = 0;
     bool pausaMelhoria = false;
-
+    
     float tempo_magia = -DURACAO_MAGIA;
     float efeito_magia_x = 0;
     float efeito_magia_y = 0;
@@ -310,7 +310,12 @@ int main(void)
     int **mapa = criarMatriz (linhas, colunas);
     if (mapa == NULL) {
         printf("Erro de alocação");
-        return 1;
+        return 1;Rectangle origemJogador = {
+        1 * LARGURA_FRAME,
+        0,
+        LARGURA_FRAME,
+        ALTURA_FRAME
+    };
     }
 
     criarInimigo(inimigos, capacidade, 200, 150, 2, 10, 20, pquantidade, 15);
@@ -330,7 +335,7 @@ int main(void)
 
         // Atacar inimigos //       
         int alvo = inimigoMaisProximo(pquantidade, jogador1.pos.x, jogador1.pos.y, inimigos);
-        if (GetTime() - tempo_ataque >= 2.0f) {
+        if (GetTime() - tempo_ataque >= 1.0f) {
             if (IsKeyPressed(KEY_SPACE)) {
                 if (alvo >= 0) {
                     float dx = jogador1.pos.x - inimigos[alvo].x;
